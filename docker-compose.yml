@@ -10,9 +10,9 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules # Prevents local node_modules from overwriting container
+      - /app/node_modules # <-- ЦЕЙ РЯДОК ОБОВ'ЯЗКОВИЙ. Він захищає Linux пакети від затирання з Windows.
     environment:
-      - WATCHPACK_POLLING=true # Helps Vite hot-reload on Windows hosts
+      - WATCHPACK_POLLING=true
 
   gateway:
     build:
@@ -23,6 +23,7 @@ services:
       - "8080:8080"
     volumes:
       - ./gateway:/app
+      - ./proto:/proto  # Maps the shared protocol buffers interface
 
   core:
     build:
@@ -33,3 +34,4 @@ services:
       - "50051:50051"
     volumes:
       - ./core:/app
+      - ./proto:/proto # Maps the shared proto directory inside the container

@@ -1,17 +1,17 @@
+# frontend/Dockerfile
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy configuration files
+# Copy package configuration first
 COPY package.json ./
 
-# Install dependencies inside container
+# Install dependencies inside the Linux container environment
 RUN npm install
 
-# Copy the rest of the application
+# Copy the rest of the source code
 COPY . .
 
-# Expose Vite development server port
 EXPOSE 5173
 
 CMD ["npm", "run", "dev"]
