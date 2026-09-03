@@ -1,0 +1,30 @@
+# === OS generated files ===
+.DS_Store
+Thumbs.db
+
+# === IDE and Editors ===
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# === Frontend (Node/Vite) ===
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+
+# === Gateway (Go) ===
+gateway/gateway
+gateway/*.exe
+gateway/*.out
+
+# === Game Core (Rust) ===
+core/target/
+core/Cargo.lock
+
+# === Docker ===
+.docker/

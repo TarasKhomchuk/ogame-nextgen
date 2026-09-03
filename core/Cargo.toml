@@ -1,0 +1,13 @@
+[package]
+name = "core-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Minimum required dependencies for Phase 1
+tokio = { version = "1.35", features = ["full"] }
+tonic = "0.10"
+prost = "0.12"
+
+[build-dependencies]
+tonic-build = "0.10"
