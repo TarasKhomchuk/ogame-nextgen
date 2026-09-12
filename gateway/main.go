@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -55,19 +56,20 @@ func formatUptime(bootTime time.Time) string {
 // gateway/main.go
 // REST HTTP handler orchestra serving the cluster telemetry metrics to Vue 3 admin
 func handleAdminHealth(w http.ResponseWriter, r *http.Request) {
-	// Enable basic CORS headers for cross-container local development polling
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 
-	// 1. Resolve Gateway metric vectors local state
 	gatewayMetric := ComponentStatus{
 		Status:  true,
 		Version: "v0.1.0-go",
 		Uptime:  formatUptime(gatewayBootTime),
 	}
 
-	// 2. Query Game Core internal status via secure gRPC transport line
 	coreMetric := ComponentStatus{Status: false, Version: "N/A", Uptime: "N/A"}
+	postgresMetric := ComponentStatus{Status: false, Version: "PostgreSQL 16", Uptime: "N/A"}
+	redisMetric := ComponentStatus{Status: false, Version: "Redis 7", Uptime: "N/A"}
+
+	// Query Game Core microservice via gRPC transport channel
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	coreResp, err := gameClient.GetServerTelemetry(ctx, &TelemetryRequest{})
 	cancel()
@@ -75,14 +77,31 @@ func handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		coreMetric.Status = coreResp.Status
 		coreMetric.Version = coreResp.Version
-		coreMetric.Uptime = coreResp.Uptime
+
+		parts := strings.Split(coreResp.Uptime, "|")
+		if len(parts) == 3 {
+			coreMetric.Uptime = parts[0]
+			postgresMetric.Status = (parts[1] == "true")
+			redisMetric.Status = (parts[2] == "true")
+
+			if postgresMetric.Status {
+				postgresMetric.Uptime = "Active connected pool"
+			}
+			if redisMetric.Status {
+				redisMetric.Uptime = "Active cache connection"
+			}
+		} else {
+			coreMetric.Uptime = coreResp.Uptime
+		}
+	} else {
+		// CRUCIAL BUG FIX: If gRPC call fails, mark ONLY downstream backend tiers as offline.
+		// DO NOT touch gatewayMetric.Status, let it remain TRUE because the gateway is alive!
+		log.Printf("[Gateway] Telemetry sync with Core failed: %v", err)
+		coreMetric.Status = false
+		postgresMetric.Status = false
+		redisMetric.Status = false
 	}
 
-	// 3. Mock placeholders for databases (Phase 2 integration blueprints incoming)
-	postgresMetric := ComponentStatus{Status: false, Version: "PostgreSQL 16", Uptime: "N/A"}
-	redisMetric := ComponentStatus{Status: false, Version: "Redis 7", Uptime: "N/A"}
-
-	// Compile structural payload mapping
 	telemetryPayload := TelemetryTreeResponse{
 		Gateway:  gatewayMetric,
 		GameCore: coreMetric,

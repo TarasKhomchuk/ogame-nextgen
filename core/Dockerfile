@@ -1,10 +1,11 @@
-FROM rust:1.85-alpine
+FROM rust:1.88.0-bookworm
 
 # Install build essentials and protoc required for gRPC code generation
 #RUN apk add --no-cache musl-dev protoc protobuf-dev git
 #RUN apk add --no-cache musl-dev
 #RUN apk add --no-cache musl-dev protoc protobuf-dev
-RUN apk add --no-cache musl-dev protoc protobuf-dev build-base git
+#RUN apk add --no-cache musl-dev protoc protobuf-dev build-base git
+RUN apt-get update && apt-get install -y protobuf-compiler
 
 WORKDIR /app
 
