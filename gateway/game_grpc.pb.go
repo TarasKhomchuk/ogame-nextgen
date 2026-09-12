@@ -19,8 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	GameService_ProcessAction_FullMethodName      = "/game.GameService/ProcessAction"
-	GameService_GetServerTelemetry_FullMethodName = "/game.GameService/GetServerTelemetry"
+	GameService_ProcessAction_FullMethodName          = "/game.GameService/ProcessAction"
+	GameService_GetServerTelemetry_FullMethodName     = "/game.GameService/GetServerTelemetry"
+	GameService_GetDatabaseCatalog_FullMethodName     = "/game.GameService/GetDatabaseCatalog"
+	GameService_SwitchOrCreateDatabase_FullMethodName = "/game.GameService/SwitchOrCreateDatabase"
+	GameService_InitDatabaseSchema_FullMethodName     = "/game.GameService/InitDatabaseSchema"
 )
 
 // GameServiceClient is the client API for GameService service.
@@ -30,6 +33,10 @@ type GameServiceClient interface {
 	ProcessAction(ctx context.Context, in *ActionRequest, opts ...grpc.CallOption) (*ActionResponse, error)
 	// New RPC for Phase 2 cluster health telemetry monitoring
 	GetServerTelemetry(ctx context.Context, in *TelemetryRequest, opts ...grpc.CallOption) (*TelemetryResponse, error)
+	// Phase 4: Dynamic Database Management Cluster Routing
+	GetDatabaseCatalog(ctx context.Context, in *DatabaseCatalogRequest, opts ...grpc.CallOption) (*DatabaseCatalogResponse, error)
+	SwitchOrCreateDatabase(ctx context.Context, in *SwitchDatabaseRequest, opts ...grpc.CallOption) (*SwitchDatabaseResponse, error)
+	InitDatabaseSchema(ctx context.Context, in *InitSchemaRequest, opts ...grpc.CallOption) (*InitSchemaResponse, error)
 }
 
 type gameServiceClient struct {
@@ -58,6 +65,33 @@ func (c *gameServiceClient) GetServerTelemetry(ctx context.Context, in *Telemetr
 	return out, nil
 }
 
+func (c *gameServiceClient) GetDatabaseCatalog(ctx context.Context, in *DatabaseCatalogRequest, opts ...grpc.CallOption) (*DatabaseCatalogResponse, error) {
+	out := new(DatabaseCatalogResponse)
+	err := c.cc.Invoke(ctx, GameService_GetDatabaseCatalog_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gameServiceClient) SwitchOrCreateDatabase(ctx context.Context, in *SwitchDatabaseRequest, opts ...grpc.CallOption) (*SwitchDatabaseResponse, error) {
+	out := new(SwitchDatabaseResponse)
+	err := c.cc.Invoke(ctx, GameService_SwitchOrCreateDatabase_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gameServiceClient) InitDatabaseSchema(ctx context.Context, in *InitSchemaRequest, opts ...grpc.CallOption) (*InitSchemaResponse, error) {
+	out := new(InitSchemaResponse)
+	err := c.cc.Invoke(ctx, GameService_InitDatabaseSchema_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GameServiceServer is the server API for GameService service.
 // All implementations must embed UnimplementedGameServiceServer
 // for forward compatibility
@@ -65,6 +99,10 @@ type GameServiceServer interface {
 	ProcessAction(context.Context, *ActionRequest) (*ActionResponse, error)
 	// New RPC for Phase 2 cluster health telemetry monitoring
 	GetServerTelemetry(context.Context, *TelemetryRequest) (*TelemetryResponse, error)
+	// Phase 4: Dynamic Database Management Cluster Routing
+	GetDatabaseCatalog(context.Context, *DatabaseCatalogRequest) (*DatabaseCatalogResponse, error)
+	SwitchOrCreateDatabase(context.Context, *SwitchDatabaseRequest) (*SwitchDatabaseResponse, error)
+	InitDatabaseSchema(context.Context, *InitSchemaRequest) (*InitSchemaResponse, error)
 	mustEmbedUnimplementedGameServiceServer()
 }
 
@@ -77,6 +115,15 @@ func (UnimplementedGameServiceServer) ProcessAction(context.Context, *ActionRequ
 }
 func (UnimplementedGameServiceServer) GetServerTelemetry(context.Context, *TelemetryRequest) (*TelemetryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetServerTelemetry not implemented")
+}
+func (UnimplementedGameServiceServer) GetDatabaseCatalog(context.Context, *DatabaseCatalogRequest) (*DatabaseCatalogResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDatabaseCatalog not implemented")
+}
+func (UnimplementedGameServiceServer) SwitchOrCreateDatabase(context.Context, *SwitchDatabaseRequest) (*SwitchDatabaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SwitchOrCreateDatabase not implemented")
+}
+func (UnimplementedGameServiceServer) InitDatabaseSchema(context.Context, *InitSchemaRequest) (*InitSchemaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitDatabaseSchema not implemented")
 }
 func (UnimplementedGameServiceServer) mustEmbedUnimplementedGameServiceServer() {}
 
@@ -127,6 +174,60 @@ func _GameService_GetServerTelemetry_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GameService_GetDatabaseCatalog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DatabaseCatalogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).GetDatabaseCatalog(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_GetDatabaseCatalog_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).GetDatabaseCatalog(ctx, req.(*DatabaseCatalogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GameService_SwitchOrCreateDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SwitchDatabaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).SwitchOrCreateDatabase(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_SwitchOrCreateDatabase_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).SwitchOrCreateDatabase(ctx, req.(*SwitchDatabaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GameService_InitDatabaseSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitSchemaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).InitDatabaseSchema(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_InitDatabaseSchema_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).InitDatabaseSchema(ctx, req.(*InitSchemaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GameService_ServiceDesc is the grpc.ServiceDesc for GameService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -141,6 +242,18 @@ var GameService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetServerTelemetry",
 			Handler:    _GameService_GetServerTelemetry_Handler,
+		},
+		{
+			MethodName: "GetDatabaseCatalog",
+			Handler:    _GameService_GetDatabaseCatalog_Handler,
+		},
+		{
+			MethodName: "SwitchOrCreateDatabase",
+			Handler:    _GameService_SwitchOrCreateDatabase_Handler,
+		},
+		{
+			MethodName: "InitDatabaseSchema",
+			Handler:    _GameService_InitDatabaseSchema_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

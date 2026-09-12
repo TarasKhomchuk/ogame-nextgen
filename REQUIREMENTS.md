@@ -69,3 +69,14 @@ The goal of Phase 1 is to build three minimalist applications that establish a c
         *   `status`: boolean (true = `ONLINE`, false = `OFFLINE`)
         *   `version`: string (semantic versioning tag, e.g., `v0.1.0`)
         *   `uptime`: string (human-readable service run duration, e.g., `0d 2h 15m 30s`)
+
+### Modified Specifications for Database Administration (Phase 4)
+*   **Database Initialization & Structure Command:**
+    *   The Admin Portal must provide a functional interface to execute the primary schema initialization script.
+    *   The orchestration flow: `admin-portal` (Vue 3 HTTP POST) -> `gateway` (Go API Proxy) -> `core` (Rust gRPC call) -> `postgres` (Raw SQL DDL execution).
+    *   The core initialization script must programmatically construct two relational tables: `users` and `planets`.
+*   **Administrator Provisioning Configuration:**
+    *   During schema initialization, the interface must accept input vectors for the master administrator: `admin_username` and `admin_password`.
+    *   The Rust Core must securely insert this master admin into the `users` table with standard encryption flag placeholder and role type set to `SUPERADMIN`.
+*   **Future Resilience Scope Architectural Triggers (Placeholders):**
+    *   Design the internal contract responses to support future cluster mechanics: enumerating active databases, triggering logical database hot-swaps, and performing dynamic snapshot backups.

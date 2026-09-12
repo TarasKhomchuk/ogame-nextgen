@@ -6,9 +6,13 @@ option go_package = "./;main";
 
 service GameService {
     rpc ProcessAction (ActionRequest) returns (ActionResponse);
-    
     // New RPC for Phase 2 cluster health telemetry monitoring
     rpc GetServerTelemetry (TelemetryRequest) returns (TelemetryResponse);
+
+    // Phase 4: Dynamic Database Management Cluster Routing
+    rpc GetDatabaseCatalog (DatabaseCatalogRequest) returns (DatabaseCatalogResponse);
+    rpc SwitchOrCreateDatabase (SwitchDatabaseRequest) returns (SwitchDatabaseResponse);
+    rpc InitDatabaseSchema (InitSchemaRequest) returns (InitSchemaResponse);
 }
 
 message ActionRequest {
@@ -31,4 +35,37 @@ message TelemetryResponse {
     bool status = 1;
     string version = 2;
     string uptime = 3;
+}
+
+// Request to list all databases in PostgreSQL instance
+message DatabaseCatalogRequest {}
+
+message DatabaseDetails {
+    string name = 1;
+    bool is_active = 2;
+}
+
+message DatabaseCatalogResponse {
+    repeated DatabaseDetails databases = 1;
+}
+
+// Request to create or switch the active database context
+message SwitchDatabaseRequest {
+    string database_name = 1;
+}
+
+message SwitchDatabaseResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Request to populate the current active database with our SQL migration script
+message InitSchemaRequest {
+    string admin_username = 1;
+    string admin_password = 2;
+}
+
+message InitSchemaResponse {
+    bool success = 1;
+    string message = 2;
 }
