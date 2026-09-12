@@ -19,15 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	GameService_ProcessAction_FullMethodName = "/game.GameService/ProcessAction"
+	GameService_ProcessAction_FullMethodName      = "/game.GameService/ProcessAction"
+	GameService_GetServerTelemetry_FullMethodName = "/game.GameService/GetServerTelemetry"
 )
 
 // GameServiceClient is the client API for GameService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GameServiceClient interface {
-	// Processes a single action multiplexed from the WebSocket connection
 	ProcessAction(ctx context.Context, in *ActionRequest, opts ...grpc.CallOption) (*ActionResponse, error)
+	// New RPC for Phase 2 cluster health telemetry monitoring
+	GetServerTelemetry(ctx context.Context, in *TelemetryRequest, opts ...grpc.CallOption) (*TelemetryResponse, error)
 }
 
 type gameServiceClient struct {
@@ -47,12 +49,22 @@ func (c *gameServiceClient) ProcessAction(ctx context.Context, in *ActionRequest
 	return out, nil
 }
 
+func (c *gameServiceClient) GetServerTelemetry(ctx context.Context, in *TelemetryRequest, opts ...grpc.CallOption) (*TelemetryResponse, error) {
+	out := new(TelemetryResponse)
+	err := c.cc.Invoke(ctx, GameService_GetServerTelemetry_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GameServiceServer is the server API for GameService service.
 // All implementations must embed UnimplementedGameServiceServer
 // for forward compatibility
 type GameServiceServer interface {
-	// Processes a single action multiplexed from the WebSocket connection
 	ProcessAction(context.Context, *ActionRequest) (*ActionResponse, error)
+	// New RPC for Phase 2 cluster health telemetry monitoring
+	GetServerTelemetry(context.Context, *TelemetryRequest) (*TelemetryResponse, error)
 	mustEmbedUnimplementedGameServiceServer()
 }
 
@@ -62,6 +74,9 @@ type UnimplementedGameServiceServer struct {
 
 func (UnimplementedGameServiceServer) ProcessAction(context.Context, *ActionRequest) (*ActionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProcessAction not implemented")
+}
+func (UnimplementedGameServiceServer) GetServerTelemetry(context.Context, *TelemetryRequest) (*TelemetryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetServerTelemetry not implemented")
 }
 func (UnimplementedGameServiceServer) mustEmbedUnimplementedGameServiceServer() {}
 
@@ -94,6 +109,24 @@ func _GameService_ProcessAction_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GameService_GetServerTelemetry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TelemetryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GameServiceServer).GetServerTelemetry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GameService_GetServerTelemetry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GameServiceServer).GetServerTelemetry(ctx, req.(*TelemetryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GameService_ServiceDesc is the grpc.ServiceDesc for GameService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -104,6 +137,10 @@ var GameService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProcessAction",
 			Handler:    _GameService_ProcessAction_Handler,
+		},
+		{
+			MethodName: "GetServerTelemetry",
+			Handler:    _GameService_GetServerTelemetry_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

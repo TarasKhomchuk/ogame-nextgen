@@ -51,3 +51,21 @@ The goal of Phase 1 is to build three minimalist applications that establish a c
 *   **Phase 2:** Connect Database (PostgreSQL + Redis) as additional containers in `docker-compose.yml`.
 *   **Phase 3:** Build an independent Administration Frontend container.
 *   **Phase 4:** Implement Remote Database Script Execution initiated strictly from the Administration Frontend.
+
+### Modified Requirements for Administration Portal (admin-portal/)
+*   **Status Panel Feature:**
+    *   Render a live dashboard showing the real-time operational status of all services: `admin-portal`, `gateway`, `core`, `postgres`, and `redis`.
+    *   On component mount, initiate a REST HTTP fetch request to the Go Gateway polling endpoint (e.g., `/api/admin/health`) every 5 seconds.
+    *   Dynamically color-code statuses: Green (`ONLINE`) or Red (`OFFLINE`).
+
+### Modified Requirements for Gateway Component (gateway/)
+*   **Health Check Orchestrator Endpoint:**
+    *   Expose a secure public HTTP endpoint `GET /api/admin/health` explicitly for the Administration Portal.
+    *   Upon request, perform sub-system checks: ping internal Rust Core gRPC endpoint, verify downstream DB connections, and return a structured JSON status tree.
+
+### Modified Specifications for Health Orchestration
+*   **Extended Telemetry Tree Schema:**
+    *   The `GET /api/admin/health` endpoint on Go Gateway must collect and return an extended metrics payload for each operational tier:
+        *   `status`: boolean (true = `ONLINE`, false = `OFFLINE`)
+        *   `version`: string (semantic versioning tag, e.g., `v0.1.0`)
+        *   `uptime`: string (human-readable service run duration, e.g., `0d 2h 15m 30s`)
