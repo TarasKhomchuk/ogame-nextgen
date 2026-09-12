@@ -17,12 +17,7 @@ import (
 
 //go:generate protoc --proto_path=/proto --go_out=. --go-grpc_out=. /proto/game.proto
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
-
-var gameClient GameServiceClient
-var gatewayBootTime time.Time
+// --- GLOBAL METRICS STRUCT BLUEPRINTS DEFINITIONS ---
 
 type ClientPacket struct {
 	Action string          `json:"action"`
@@ -36,11 +31,19 @@ type ComponentStatus struct {
 	Uptime  string `json:"uptime"`
 }
 
+// Dedicated response block explicitly mapping independent PostgreSQL runtime metrics
+type DatabaseTelemetryResponse struct {
+	Status        bool   `json:"status"`
+	Version       string `json:"version"`
+	Uptime        string `json:"uptime"`
+	DatabaseState string `json:"database_state"` // Contains active DB string or empty string
+}
+
 type TelemetryTreeResponse struct {
-	Gateway  ComponentStatus `json:"gateway"`
-	GameCore ComponentStatus `json:"game_core"`
-	Postgres ComponentStatus `json:"postgres"`
-	Redis    ComponentStatus `json:"redis"`
+	Gateway  ComponentStatus           `json:"gateway"`
+	GameCore ComponentStatus           `json:"game_core"`
+	Postgres DatabaseTelemetryResponse `json:"postgres"`
+	Redis    ComponentStatus           `json:"redis"`
 }
 
 type SwitchPayload struct {
@@ -51,6 +54,17 @@ type MigratePayload struct {
 	AdminUsername string `json:"admin_username"`
 	AdminPassword string `json:"admin_password"`
 }
+
+// --- GLOBAL VARIABLES CONFIGURATION ---
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+var gameClient GameServiceClient
+var gatewayBootTime time.Time
+
+// --- HELPER UTILITIES ---
 
 func formatUptime(bootTime time.Time) string {
 	elapsed := time.Since(bootTime)
@@ -67,6 +81,8 @@ func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
+// --- API HTTP HANDLERS ---
+
 func handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
@@ -81,7 +97,7 @@ func handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	coreMetric := ComponentStatus{Status: false, Version: "N/A", Uptime: "N/A"}
-	postgresMetric := ComponentStatus{Status: false, Version: "PostgreSQL 16", Uptime: "N/A"}
+	postgresMetric := DatabaseTelemetryResponse{Status: false, Version: "PostgreSQL 16", Uptime: "N/A", DatabaseState: ""}
 	redisMetric := ComponentStatus{Status: false, Version: "Redis 7", Uptime: "N/A"}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
@@ -92,27 +108,29 @@ func handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 		coreMetric.Status = coreResp.Status
 		coreMetric.Version = coreResp.Version
 
-		// De-multiplexing token schema: "uptime|pg_system_alive|redis_alive|active_db_label"
+		// De-multiplexing token schema array: "uptime|pg_server_alive|redis_alive|active_db_label"
 		parts := strings.Split(coreResp.Uptime, "|")
 		if len(parts) == 4 {
 			coreMetric.Uptime = parts[0]
-
-			// 1. Evaluate pure engine operational states (Are containers running and reachable?)
 			postgresMetric.Status = (parts[1] == "true")
 			redisMetric.Status = (parts[2] == "true")
 
-			// 2. Map contextual logic metadata safely without toggling infrastructural state indicators
-			activeDB := parts[3]
-			postgresMetric.Version = activeDB // This holds the database label (e.g., 'DISCONNECTED' or 'ogame_game_db')
-
+			postgresMetric.Uptime = parts[0]
 			if redisMetric.Status {
-				redisMetric.Uptime = "Active cache bridge"
+				redisMetric.Uptime = parts[0]
+			}
+
+			// Dynamic layout filtration parameter mapping: if disconnected, pass an empty string
+			activeDB := parts[3]
+			if activeDB == "DISCONNECTED" {
+				postgresMetric.DatabaseState = ""
+			} else {
+				postgresMetric.DatabaseState = activeDB
 			}
 		} else {
 			coreMetric.Uptime = coreResp.Uptime
 		}
 	} else {
-		log.Printf("[Gateway] Telemetry sync with Core failed: %v", err)
 		coreMetric.Status = false
 		postgresMetric.Status = false
 		redisMetric.Status = false
@@ -126,7 +144,6 @@ func handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// REST HTTP Proxy 1: Fetch list of all databases in PostgreSQL catalog instance
 func handleListDatabases(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
@@ -146,7 +163,6 @@ func handleListDatabases(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp.Databases)
 }
 
-// REST HTTP Proxy 2: Command Rust Core to programmatically CREATE or HOT-SWAP an active database
 func handleSwitchDatabase(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
@@ -181,7 +197,6 @@ func handleSwitchDatabase(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// REST HTTP Proxy 3: Command Rust Core to read .sql blueprint and build tables structure
 func handleMigrateDatabase(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
 	if r.Method == "OPTIONS" {
@@ -269,11 +284,8 @@ func main() {
 	defer grpcConn.Close()
 	gameClient = NewGameServiceClient(grpcConn)
 
-	// Traditional endpoints routings
 	http.HandleFunc("/ws", handleWebSocket)
 	http.HandleFunc("/api/admin/health", handleAdminHealth)
-
-	// New Dynamic Database Catalog Administration endpoints API mappings
 	http.HandleFunc("/api/admin/databases", handleListDatabases)
 	http.HandleFunc("/api/admin/databases/switch", handleSwitchDatabase)
 	http.HandleFunc("/api/admin/databases/migrate", handleMigrateDatabase)
