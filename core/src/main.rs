@@ -74,6 +74,77 @@ impl MyGameService {
             _ => false,
         }
     }
+
+    async fn init_database_schema(
+        &self,
+        request: Request<InitSchemaRequest>,
+    ) -> Result<Response<InitSchemaResponse>, Status> {
+        let req = request.into_inner();
+        let name_guard = self.active_db_name.read().await;
+        
+        let active_name = match &*name_guard {
+            Some(name) => name,
+            None => return Ok(Response::new(InitSchemaResponse {
+                success: false,
+                message: "Command rejected: Cannot initialize schema because no active database is connected.".to_string(),
+            })),
+        };
+
+        // 1. Read the defined DDL tables architecture from disk path
+        let sql_script = match std::fs::read_to_string("migrations/0001_init_game_schema.sql") {
+            Ok(content) => content,
+            Err(e) => return Ok(Response::new(InitSchemaResponse {
+                success: false,
+                message: format!("Failed to read schema blueprint file from disk: {}", e),
+            })),
+        };
+
+        let pool_guard = self.active_pg_pool.read().await;
+        let pool = pool_guard.as_ref().unwrap();
+
+        // 2. Execute SQL tables deployment transaction block
+        if let Err(e) = sqlx::raw_sql(&sql_script).execute(pool).await {
+            return Ok(Response::new(InitSchemaResponse {
+                success: false,
+                message: format!("DDL execution failure during transaction parsing sequence: {}", e),
+            }));
+        }
+
+        // 3. Cryptographically hash the administrator password vector using bcrypt (cost factor = 10)
+        let hashed_password = match bcrypt::hash(&req.admin_password, 10) {
+            Ok(h) => h,
+            Err(e) => return Ok(Response::new(InitSchemaResponse {
+                success: false,
+                message: format!("Internal security error during credentials hashing sequence: {}", e),
+            })),
+        };
+
+        // 4. Securely inject the Provisioned Master Administrator into the clean 'users' table
+        let insert_result = sqlx::query(
+            "INSERT INTO users (username, password_hash, role) VALUES ($1, $2, 'SUPERADMIN') ON CONFLICT (username) DO NOTHING"
+        )
+        .bind(&req.admin_username)
+        .bind(&hashed_password)
+        .execute(pool)
+        .await;
+
+        match insert_result {
+            Ok(_) => {
+                println!("[Core] Success: Master administrator account '{}' provisioned into users system.", req.admin_username);
+                Ok(Response::new(InitSchemaResponse {
+                    success: true,
+                    message: format!(
+                        "Database tables initialized and master account '{}' successfully provisioned on context '{}'!", 
+                        req.admin_username, active_name
+                    ),
+                }))
+            },
+            Err(e) => Ok(Response::new(InitSchemaResponse {
+                success: false,
+                message: format!("Schema built successfully, but master account injection failed: {}", e),
+            })),
+        }
+    }
 }
 
 #[tonic::async_trait]

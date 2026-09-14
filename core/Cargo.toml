@@ -11,5 +11,8 @@ prost = "0.12"
 sqlx = { version = "0.7", features = [ "runtime-tokio", "postgres" ] }
 redis = { version = "0.24", features = ["tokio-comp"] }
 
+# New secure cryptographic dependency for Phase 4 administrator injection
+bcrypt = "0.15"
+
 [build-dependencies]
 tonic-build = "0.10"
